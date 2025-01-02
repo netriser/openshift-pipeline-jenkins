@@ -34,23 +34,23 @@ pipeline {
                 }
             }
         }
-        stage('Expose Route') {
-            steps {
-                script {
-                    // Vérifier et exposer la route
-                    openshift.withCluster() {
-                        openshift.withProject() {
-                            def svc = openshift.selector('svc', 'html-nginx-build')
-                            if (!svc.exists()) {
-                                echo "Exposing service..."
-                                svc.expose()
-                            } else {
-                                echo "Service already exposed."
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // stage('Expose Route') {
+        //     steps {
+        //         script {
+        //             // Vérifier et exposer la route
+        //             openshift.withCluster() {
+        //                 openshift.withProject() {
+        //                     def svc = openshift.selector('svc', 'html-nginx-build')
+        //                     if (!svc.exists()) {
+        //                         echo "Exposing service..."
+        //                         svc.expose()
+        //                     } else {
+        //                         echo "Service already exposed."
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
     }
 }
