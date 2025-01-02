@@ -13,8 +13,6 @@ pipeline {
                         sh """
                         echo 'Initializing KUBECONFIG and OpenShift CLI...'
                         oc login ${OPENSHIFT_API_URL} --token=${OPENSHIFT_TOKEN} --insecure-skip-tls-verify
-                        oc whoami
-                        oc projects
                         echo 'Switching to project ${OPENSHIFT_PROJECT}...'
                         oc project ${OPENSHIFT_PROJECT}
                         """
@@ -48,6 +46,24 @@ pipeline {
                         else
                             echo 'Creating new application...'
                             oc new-app html-nginx-build
+                        fi
+                        """
+                    }
+                }
+            }
+        }
+        stage('Expose Route') {
+            steps {
+                script {
+                    withEnv(["PATH+OC=${tool 'oc3.11'}", "KUBECONFIG=${env.WORKSPACE}/kubeconfig"]) {
+                        sh """
+                        echo 'Exposing service route in project ${OPENSHIFT_PROJECT}...'
+                        oc project ${OPENSHIFT_PROJECT}
+                        if ! oc get route html-nginx; then
+                            oc expose svc/html-nginx
+                            echo 'Route exposed successfully.'
+                        else
+                            echo 'Route already exists.'
                         fi
                         """
                     }
