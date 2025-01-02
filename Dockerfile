@@ -7,7 +7,6 @@ RUN mkdir -p /var/run/nginx /var/log/nginx /var/cache/nginx && \
 COPY index.html /usr/share/nginx/html/index.html
 
 USER nginx:nginx
-EXPOSE 8000
+EXPOSE 80
 
-ENTRYPOINT ["/bin/uid_entrypoint"]
 CMD ["nginx","-g","daemon off;"]
