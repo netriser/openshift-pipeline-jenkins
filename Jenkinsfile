@@ -59,11 +59,21 @@ pipeline {
                         sh """
                         echo 'Exposing service route in project ${OPENSHIFT_PROJECT}...'
                         oc project ${OPENSHIFT_PROJECT}
-                        if ! oc get route html-nginx-build; then
+                        # Vérify if route exists
+                        if oc get route html-nginx-build > /dev/null 2>&1; then
+                            echo 'Route already exists.'
+                        else
+                            # Vérify if service existe
+                            if oc get svc html-nginx-build > /dev/null 2>&1; then
+                                echo 'Service exists, creating route...'
+                            else
+                                echo 'Service does not exist, creating service...'
+                                # Crée le service basé sur le DeploymentConfig
+                                oc expose dc/html-nginx-build
+                            fi
+                            # Crée la route
                             oc expose svc/html-nginx-build
                             echo 'Route exposed successfully.'
-                        else
-                            echo 'Route already exists.'
                         fi
                         """
                     }
