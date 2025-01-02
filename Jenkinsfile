@@ -1,32 +1,31 @@
 pipeline {
     agent any
     triggers {
-        githubPush() // Déclenchement sur commit GitHub
+        githubPush() // Déclenchement automatique sur les commits GitHub
+    }
+    environment {
+        OPENSHIFT_API_URL = 'https://api.crc.testing:6443' // URL de votre cluster OpenShift
+        OPENSHIFT_TOKEN = credentials('openshift-token')  // ID de vos Credentials Jenkins
     }
     stages {
         stage('Clone Repository') {
             steps {
-                git branch: 'main', url: 'https://github.com/netriser/openshift-pipeline-jenkins.git'
+                git branch: 'main', url: 'https://github.com/votre-depot/openshift-pipeline.git'
             }
         }
         stage('Lint HTML') {
             steps {
-                script {
-                    // Ajouter un simple validateur HTML
-                    sh """
-                    echo 'Linting HTML...'
-                    if grep -q '<h1>' index.html; then echo 'Lint Passed'; else exit 1; fi
-                    """
-                }
+                sh """
+                echo 'Linting HTML...'
+                if grep -q '<h1>' index.html; then echo 'Lint Passed'; else exit 1; fi
+                """
             }
         }
-        stage('Build and Deploy') {
+        stage('Build Image') {
             steps {
                 script {
-                    // Utilisation de la configuration OpenShift Sync Plugin
                     openshift.withCluster() {
                         openshift.withProject() {
-                            // Démarrer un build OpenShift
                             def build = openshift.selector('bc', 'html-nginx-build').startBuild('--from-dir=. --follow')
                             build.logs('-f')
                         }
@@ -34,23 +33,40 @@ pipeline {
                 }
             }
         }
-        // stage('Expose Route') {
-        //     steps {
-        //         script {
-        //             // Vérifier et exposer la route
-        //             openshift.withCluster() {
-        //                 openshift.withProject() {
-        //                     def svc = openshift.selector('svc', 'html-nginx-build')
-        //                     if (!svc.exists()) {
-        //                         echo "Exposing service..."
-        //                         svc.expose()
-        //                     } else {
-        //                         echo "Service already exposed."
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+        stage('Deploy to OpenShift') {
+            steps {
+                script {
+                    openshift.withCluster() {
+                        openshift.withProject() {
+                            def dc = openshift.selector('dc', 'html-nginx')
+                            if (!dc.exists()) {
+                                echo 'Deploying new application...'
+                                openshift.newApp('html-nginx-build')
+                            } else {
+                                echo 'Updating existing deployment...'
+                                dc.rollout().status()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        stage('Expose Route') {
+            steps {
+                script {
+                    openshift.withCluster() {
+                        openshift.withProject() {
+                            def svc = openshift.selector('svc', 'html-nginx-build')
+                            if (!svc.exists()) {
+                                svc.expose()
+                                echo 'Route exposed successfully.'
+                            } else {
+                                echo 'Route already exists.'
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
