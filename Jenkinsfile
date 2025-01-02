@@ -1,9 +1,5 @@
 pipeline {
     agent any
-    environment {
-        OPENSHIFT_API_URL = 'https://api.crc.testing:6443' // URL de votre cluster
-        OPENSHIFT_TOKEN = credentials('openshift-token') // ID du Credential Jenkins
-    }
     triggers {
         githubPush() // Déclenchement sur commit GitHub
     }
@@ -27,11 +23,13 @@ pipeline {
         stage('Build and Deploy') {
             steps {
                 script {
-                    withEnv(["PATH+OC=${tool 'oc3.11'}"]) {
-                        sh """
-                        oc login ${OPENSHIFT_API_URL} --token=${OPENSHIFT_TOKEN} --insecure-skip-tls-verify
-                        oc start-build html-nginx-build --from-dir=. --follow
-                        """
+                    // Utilisation de la configuration OpenShift Sync Plugin
+                    openshift.withCluster() {
+                        openshift.withProject() {
+                            // Démarrer un build OpenShift
+                            def build = openshift.selector('bc', 'html-nginx-build').startBuild('--from-dir=. --follow')
+                            build.logs('-f')
+                        }
                     }
                 }
             }
@@ -39,11 +37,17 @@ pipeline {
         stage('Expose Route') {
             steps {
                 script {
-                    withEnv(["PATH+OC=${tool 'oc3.11'}"]) {
-                        sh """
-                        oc expose svc/html-nginx-build
-                        echo 'Route Exposed!'
-                        """
+                    // Vérifier et exposer la route
+                    openshift.withCluster() {
+                        openshift.withProject() {
+                            def svc = openshift.selector('svc', 'html-nginx-build')
+                            if (!svc.exists()) {
+                                echo "Exposing service..."
+                                svc.expose()
+                            } else {
+                                echo "Service already exposed."
+                            }
+                        }
                     }
                 }
             }
