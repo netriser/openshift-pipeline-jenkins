@@ -23,13 +23,24 @@ pipeline {
                 """
             }
         }
+        stage('Setup KUBECONFIG') {
+            steps {
+                script {
+                    withEnv(["PATH+OC=${tool 'oc3.11'}", "KUBECONFIG=${env.WORKSPACE}/kubeconfig"]) {
+                        sh """
+                        echo 'Setting up KUBECONFIG...'
+                        oc login ${OPENSHIFT_API_URL} --token=${OPENSHIFT_TOKEN} --insecure-skip-tls-verify
+                        echo 'KUBECONFIG set to ${env.WORKSPACE}/kubeconfig'
+                        """
+                    }
+                }
+            }
+        }
         stage('Build Image') {
             steps {
                 script {
-                    withEnv(["PATH+OC=${tool 'oc3.11'}"]) { // Ajouter le chemin de l'outil oc
+                    withEnv(["PATH+OC=${tool 'oc3.11'}", "KUBECONFIG=${env.WORKSPACE}/kubeconfig"]) {
                         sh """
-                        echo 'Logging in to OpenShift...'
-                        oc login ${OPENSHIFT_API_URL} --token=${OPENSHIFT_TOKEN} --insecure-skip-tls-verify
                         echo 'Starting OpenShift build...'
                         oc start-build html-nginx-build --from-dir=. --follow
                         """
@@ -40,7 +51,7 @@ pipeline {
         stage('Deploy to OpenShift') {
             steps {
                 script {
-                    withEnv(["PATH+OC=${tool 'oc3.11'}"]) { // Ajouter le chemin de l'outil oc
+                    withEnv(["PATH+OC=${tool 'oc3.11'}", "KUBECONFIG=${env.WORKSPACE}/kubeconfig"]) {
                         sh """
                         echo 'Deploying application...'
                         if oc get dc html-nginx; then
@@ -58,7 +69,7 @@ pipeline {
         stage('Expose Route') {
             steps {
                 script {
-                    withEnv(["PATH+OC=${tool 'oc3.11'}"]) { // Ajouter le chemin de l'outil oc
+                    withEnv(["PATH+OC=${tool 'oc3.11'}", "KUBECONFIG=${env.WORKSPACE}/kubeconfig"]) {
                         sh """
                         echo 'Exposing service route...'
                         if ! oc get route html-nginx; then
@@ -71,6 +82,15 @@ pipeline {
                     }
                 }
             }
+        }
+    }
+    post {
+        always {
+            // Nettoyer le fichier KUBECONFIG après exécution
+            sh """
+            echo 'Cleaning up KUBECONFIG...'
+            rm -f ${env.WORKSPACE}/kubeconfig
+            """
         }
     }
 }
