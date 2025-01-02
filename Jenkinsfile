@@ -59,8 +59,8 @@ pipeline {
                         sh """
                         echo 'Exposing service route in project ${OPENSHIFT_PROJECT}...'
                         oc project ${OPENSHIFT_PROJECT}
-                        if ! oc get route html-nginx; then
-                            oc expose svc/html-nginx
+                        if ! oc get route html-nginx-build; then
+                            oc expose svc/html-nginx-build
                             echo 'Route exposed successfully.'
                         else
                             echo 'Route already exists.'
