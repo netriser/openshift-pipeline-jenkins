@@ -45,6 +45,7 @@ pipeline {
                     withEnv(["PATH+OC=${tool 'oc3.11'}", "KUBECONFIG=${env.WORKSPACE}/kubeconfig"]) {
                         sh """
                         echo 'Starting OpenShift build in project ${OPENSHIFT_PROJECT}...'
+                        oc project ${OPENSHIFT_PROJECT}
                         oc start-build html-nginx-build --from-dir=. --follow
                         """
                     }
@@ -57,6 +58,7 @@ pipeline {
                     withEnv(["PATH+OC=${tool 'oc3.11'}", "KUBECONFIG=${env.WORKSPACE}/kubeconfig"]) {
                         sh """
                         echo 'Deploying application in project ${OPENSHIFT_PROJECT}...'
+                        oc project ${OPENSHIFT_PROJECT}
                         if oc get dc html-nginx; then
                             echo 'DeploymentConfig exists, rolling out...'
                             oc rollout status dc/html-nginx
@@ -75,6 +77,7 @@ pipeline {
                     withEnv(["PATH+OC=${tool 'oc3.11'}", "KUBECONFIG=${env.WORKSPACE}/kubeconfig"]) {
                         sh """
                         echo 'Exposing service route in project ${OPENSHIFT_PROJECT}...'
+                        oc project ${OPENSHIFT_PROJECT}
                         if ! oc get route html-nginx; then
                             oc expose svc/html-nginx
                             echo 'Route exposed successfully.'
