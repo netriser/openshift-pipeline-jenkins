@@ -1,8 +1,8 @@
 pipeline {
     agent any
     environment {
-        OPENSHIFT_API_URL = 'https://api.crc.testing:6443' // URL de votre cluster
-        OPENSHIFT_TOKEN = credentials('openshift-token') // ID du Credential Jenkins
+        OPENSHIFT_API_URL = 'https://api.crc.testing:6443' // URL de votre cluster OpenShift
+        OPENSHIFT_TOKEN = credentials('openshift-token')  // ID du Credential Jenkins
     }
     stages {
         stage('Cleanup Workspace') {
@@ -26,11 +26,13 @@ pipeline {
         stage('Build Image') {
             steps {
                 script {
-                    openshift.withCluster() {
-                        openshift.withProject() {
-                            def build = openshift.selector('bc', 'html-nginx-build').startBuild('--from-dir=. --follow')
-                            build.logs('-f')
-                        }
+                    withEnv(["PATH+OC=${tool 'oc3.11'}"]) { // Ajouter le chemin de l'outil oc
+                        sh """
+                        echo 'Logging in to OpenShift...'
+                        oc login ${OPENSHIFT_API_URL} --token=${OPENSHIFT_TOKEN} --insecure-skip-tls-verify
+                        echo 'Starting OpenShift build...'
+                        oc start-build html-nginx-build --from-dir=. --follow
+                        """
                     }
                 }
             }
@@ -38,15 +40,17 @@ pipeline {
         stage('Deploy to OpenShift') {
             steps {
                 script {
-                    openshift.withCluster() {
-                        openshift.withProject() {
-                            def dc = openshift.selector('dc', 'html-nginx')
-                            if (!dc.exists()) {
-                                openshift.newApp('html-nginx-build')
-                            } else {
-                                dc.rollout().status()
-                            }
-                        }
+                    withEnv(["PATH+OC=${tool 'oc3.11'}"]) { // Ajouter le chemin de l'outil oc
+                        sh """
+                        echo 'Deploying application...'
+                        if oc get dc html-nginx; then
+                            echo 'DeploymentConfig exists, rolling out...'
+                            oc rollout status dc/html-nginx
+                        else
+                            echo 'Creating new application...'
+                            oc new-app html-nginx-build
+                        fi
+                        """
                     }
                 }
             }
@@ -54,14 +58,16 @@ pipeline {
         stage('Expose Route') {
             steps {
                 script {
-                    openshift.withCluster() {
-                        openshift.withProject() {
-                            def svc = openshift.selector('svc', 'html-nginx-build')
-                            if (!svc.exists()) {
-                                svc.expose()
-                                echo 'Route exposed successfully.'
-                            }
-                        }
+                    withEnv(["PATH+OC=${tool 'oc3.11'}"]) { // Ajouter le chemin de l'outil oc
+                        sh """
+                        echo 'Exposing service route...'
+                        if ! oc get route html-nginx; then
+                            oc expose svc/html-nginx
+                            echo 'Route exposed successfully.'
+                        else
+                            echo 'Route already exists.'
+                        fi
+                        """
                     }
                 }
             }
