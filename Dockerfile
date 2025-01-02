@@ -1,17 +1,13 @@
-FROM registry.redhat.io/nginx-118/nginx:1-118.0
+FROM nginx:alpine
 
-# Configurations supplémentaires (ajuster les permissions, ajouter des fichiers, etc.)
-RUN mkdir -p /tmp/nginx/cache/client_temp && \
-    chmod -R 777 /tmp/nginx/cache && \
-    chown -R 1001:0 /tmp/nginx/cache
+RUN mkdir -p /var/run/nginx /var/log/nginx /var/cache/nginx && \
+	chown -R nginx:0 /var/run/nginx /var/log/nginx /var/cache/nginx && \
+	chmod -R g=u /var/run/nginx /var/log/nginx /var/cache/nginx
 
-# Exemple de copie d'un fichier HTML dans le conteneur
 COPY index.html /usr/share/nginx/html/index.html
 
-# Passer à un utilisateur non-root
-USER 1001
+USER nginx:nginx
+EXPOSE 8000
 
-# Exposer les ports
-EXPOSE 8080
-
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/bin/uid_entrypoint"]
+CMD ["nginx","-g","daemon off;"]
